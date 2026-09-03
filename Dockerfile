@@ -1,20 +1,20 @@
 FROM python:3.11-slim
 
-# دابەزاندنا FFmpeg و هەمی پێدڤیێن دەنگی و سیستەمی
+# دابەزاندنا هەمی پێدڤیێن دەنگی یێن Linux
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    libopus0 \
+    libopus-dev \
     libffi-dev \
     libsodium-dev \
-    libopus-dev \
     build-essential \
-    python3-dev
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# کۆپی کرنا فایلێن پێدڤی
+# ل ڤێرێ پێدڤییە requirements بەری کۆد بهێتە دابەزاندن
 COPY requirements.txt .
-
-# دامەزراندنا کتێبخانەیان
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
