@@ -1,35 +1,15 @@
 import discord
-from discord.ext import commands, tasks
-from discord import app_commands
+from discord.ext import commands
 import yt_dlp
 import asyncio
 import os
 import shutil
 
-# --- ١. رێکخستنا Intents ---
+# --- رێکخستنا Intents ---
 intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-class MusicBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
-
-    async def setup_hook(self):
-        await self.tree.sync()
-        self.clean_data_task.start()
-        print(f"✅ HMB MUSIC IS READY")
-
-    @tasks.loop(minutes=10)
-    async def clean_data_task(self):
-        try:
-            for file in os.listdir('.'):
-                if file.endswith((".webm", ".m4a", ".mp3", ".pydat", ".temp")):
-                    os.remove(file)
-        except:
-            pass
-
-bot = MusicBot()
-
-# --- ٢. رێکخستنا موزیکێ ---
+# --- رێکخستنا موزیکێ ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
@@ -45,62 +25,93 @@ FFMPEG_OPTIONS = {
 
 ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
-# --- ٣. کۆنترۆڵ پانێل (Buttons) ---
-class ControlPanel(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
+# --- سیستەمێ ڕیزکرنێ (Queue) ---
+queues = {}
 
-    @discord.ui.button(label="⏸️ Pause/Resume", style=discord.ButtonStyle.blurple)
-    async def pause_resume(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vc = interaction.guild.voice_client
-        if vc:
-            if vc.is_playing():
-                vc.pause()
-                await interaction.response.send_message("⏸️ Paused", ephemeral=True)
-            elif vc.is_paused():
-                vc.resume()
-                await interaction.response.send_message("▶️ Resumed", ephemeral=True)
+def check_queue(ctx):
+    if queues[ctx.guild.id]:
+        voice = ctx.voice_client
+        source = queues[ctx.guild.id].pop(0)
+        voice.play(source, after=lambda e: check_queue(ctx))
+
+# --- کلاسیک کۆنترۆڵ پانێل (Professional UI) ---
+class ClassicControl(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx
+
+    @discord.ui.button(label="⏸️ Pause", style=discord.ButtonStyle.gray)
+    async def pause(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.guild.voice_client.is_playing():
+            interaction.guild.voice_client.pause()
+            await interaction.response.send_message("موزیک ڕاوەستا ⏸️", ephemeral=True)
+
+    @discord.ui.button(label="▶️ Resume", style=discord.ButtonStyle.green)
+    async def resume(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.guild.voice_client.is_paused():
+            interaction.guild.voice_client.resume()
+            await interaction.response.send_message("بەردەوام بوو ▶️", ephemeral=True)
+
+    @discord.ui.button(label="⏭️ Skip", style=discord.ButtonStyle.blurple)
+    async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.guild.voice_client:
+            interaction.guild.voice_client.stop()
+            await interaction.response.send_message("چووە سەر سترانا دی ⏭️", ephemeral=True)
 
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.red)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.guild.voice_client:
+            queues[interaction.guild.id] = []
             await interaction.guild.voice_client.disconnect()
-            await interaction.response.send_message("⏹️ Stopped", ephemeral=True)
+            await interaction.response.send_message("بۆت دەرکەفت ⏹️", ephemeral=True)
 
-# --- ٤. فەرمانا Play ---
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print(f"✅ HMB MUSIC IS ONLINE: {bot.user}")
+
 @bot.hybrid_command(name="play", description="لێدانا موزیکێ ژ YouTube, TikTok, Spotify")
 async def play(ctx, *, search: str):
     await ctx.defer()
     
     if not ctx.author.voice:
-        return await ctx.send("❌ تو یێ د چەناڵەکێ دەنگی دا نینی!")
+        return await ctx.send("❌ پێدڤییە ل ناڤ چەناڵێ دەنگی بی!")
 
     vc = ctx.voice_client or await ctx.author.voice.channel.connect()
 
+    # ئەگەر لینکێ سپۆتیفای بیت
+    if "spotify.com" in search:
+        await ctx.send("🔍 زانیاریێن سپۆتیفای دهێنە کێشان...")
+        # ل ڤێرێ ب تنێ ناڤێ سترانێ ل یوتیوبێ دگەریت
+        search = f"{search} lyrics" 
+
     try:
         data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
-        if 'entries' in data:
-            data = data['entries'][0]
+        if 'entries' in data: data = data['entries'][0]
         
         url = data['url']
         title = data['title']
-
-        if vc.is_playing():
-            vc.stop()
-
-        # ل ڤێرێ ئاگەهدار بە کەوانە ب دروستی د داخستینە ))
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS))
-        vc.play(source)
 
-        embed = discord.Embed(title="🎶 HMB MUSIC", description=f"**{title}**", color=discord.Color.blue())
-        await ctx.send(embed=embed, view=ControlPanel())
+        guild_id = ctx.guild.id
+        if guild_id not in queues:
+            queues[guild_id] = []
+
+        if vc.is_playing() or vc.is_paused():
+            queues[guild_id].append(source)
+            await ctx.send(f"➕ زێدە بوو بۆ ڕیزێ: **{title}**")
+        else:
+            vc.play(source, after=lambda e: check_queue(ctx))
+            
+            embed = discord.Embed(title="📀 HMB MUSIC - NOW PLAYING", color=0x2f3136)
+            embed.add_field(name="ستران", value=f"**{title}**", inline=False)
+            embed.set_footer(text=f"Requested by {ctx.author.name}")
+            if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
+            
+            await ctx.send(embed=embed, view=ClassicControl(ctx))
 
     except Exception as e:
         await ctx.send(f"❌ خەلەتی: {e}")
 
-# --- ٥. دەستپێکرنا بۆتی ---
 TOKEN = os.getenv("DISCORD_TOKEN")
-if TOKEN:
-    bot.run(TOKEN)
-else:
-    print("❌ DISCORD_TOKEN NOT FOUND!")
+bot.run(TOKEN)
