@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # دابەزاندنا FFmpeg ل سەر Railway
 RUN apt-get update && apt-get install -y ffmpeg libffi-dev libsodium-dev build-essential
