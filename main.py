@@ -16,19 +16,17 @@ class MusicBot(commands.Bot):
     async def setup_hook(self):
         await self.tree.sync()
         self.clean_data_task.start()
-        print(f"✅ HMB MUSIC is Ready and Cleaning Task Started.")
+        print(f"✅ HMB MUSIC IS READY")
 
-    # --- پاقژکرنا داتایان هەر ١٠ خولەکان (بۆ پاراستنا سێرڤەرێ Railway) ---
     @tasks.loop(minutes=10)
     async def clean_data_task(self):
         try:
-            # پاقژکرنا فایلێن کاتی
             for file in os.listdir('.'):
                 if file.endswith((".webm", ".m4a", ".mp3", ".pydat")):
                     os.remove(file)
-            print("♻️ Temporary data cleaned.")
-        except Exception as e:
-            print(f"❌ Cleaning error: {e}")
+            print("♻️ Data cleaned.")
+        except:
+            pass
 
 bot = MusicBot()
 
@@ -37,7 +35,6 @@ YTDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist': True, 'quiet': True, '
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
-# --- کۆنترۆڵ پانێل (Buttons) ---
 class ControlPanel(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -48,38 +45,45 @@ class ControlPanel(discord.ui.View):
         if vc:
             if vc.is_playing():
                 vc.pause()
-                await interaction.response.send_message("⏸️ Stop", ephemeral=True)
+                await interaction.response.send_message("⏸️ Paused", ephemeral=True)
             elif vc.is_paused():
                 vc.resume()
-                await interaction.response.send_message("▶️ Resume", ephemeral=True)
+                await interaction.response.send_message("▶️ Resumed", ephemeral=True)
 
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.red)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.disconnect()
-            await interaction.response.send_message("⏹️ بۆت دەرکەفت", ephemeral=True)
+            await interaction.response.send_message("⏹️ Stopped", ephemeral=True)
 
-# --- فەرمانا Play ---
-@bot.hybrid_command(name="play", description="لێدانا موزیکێ ژ YouTube, TikTok, Spotify")
+@bot.hybrid_command(name="play", description="لێدانا موزیکێ")
 async def play(ctx, *, search: str):
     await ctx.defer()
     if not ctx.author.voice:
-        return await ctx.send("❌ پێدڤییە تو د چەناڵەکێ دەنگی دابی!")
+        return await ctx.send("❌ تو یێ د چەناڵەکێ دەنگی دا نینی!")
 
-    vc = ctx.voice_client or await ctx.author.voice.channel.connect()
-    data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
-    if 'entries' in data: data = data['entries'][0]
-    
-    source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(data['url'], **FFMPEG_OPTIONS))
-    vc.play(source)
+    # پەیوەندی ب چەناڵی
+    try:
+        if not ctx.voice_client:
+            vc = await ctx.author.voice.channel.connect()
+        else:
+            vc = ctx.voice_client
+    except Exception as e:
+        return await ctx.send(f"❌ نەشێم پەیوەندیێ بکەم: {e}")
 
-    embed = discord.Embed(title="🎶 HMB MUSIC - لێدەت", description=f"**{data['title']}**", color=discord.Color.blue())
-    await ctx.send(embed=embed, view=ControlPanel())
+    # کێشانا دەنگی
+    try:
+        data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
+        if 'entries' in data: data = data['entries'][0]
+        
+        # لێدانا موزیکێ
+        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(data['url'], **FFMPEG_OPTIONS))
+        vc.play(source)
 
-@bot.event
-async def on_ready():
-    print(f'🤖 {bot.user.name} is Online!')
+        embed = discord.Embed(title="🎶 HMB MUSIC", description=f"**{data['title']}**", color=discord.Color.blue())
+        await ctx.send(embed=embed, view=ControlPanel())
+    except Exception as e:
+        await ctx.send(f"❌ خەلەتی: {e}")
 
-# Railway تۆکنێ ل ڤێرێ دخوینیت
 TOKEN = os.getenv("DISCORD_TOKEN")
 bot.run(TOKEN)
