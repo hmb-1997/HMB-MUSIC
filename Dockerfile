@@ -1,9 +1,8 @@
 FROM python:3.11-slim
 
-# دابەزاندنا هەمی پێدڤیێن دەنگی یێن Linux
+# دابەزاندنا هەمی پێدڤیێن دەنگی و سیستەمی
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    libopus0 \
     libopus-dev \
     libffi-dev \
     libsodium-dev \
@@ -13,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# ل ڤێرێ پێدڤییە requirements بەری کۆد بهێتە دابەزاندن
+# دابەزاندنا کتێبخانەیێن پایتۆن
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
