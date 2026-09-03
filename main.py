@@ -6,7 +6,7 @@ import asyncio
 import os
 import shutil
 
-# --- ١. رێکخستنا Intents و دەستهەلاتان ---
+# --- ١. رێکخستنا Intents ---
 intents = discord.Intents.all()
 
 class MusicBot(commands.Bot):
@@ -14,31 +14,27 @@ class MusicBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # Sync کردنا فەرمانێن Slash (/) دا ل دیسکۆردێ دیار بن
         await self.tree.sync()
-        self.clean_data_task.start() # دەستپێکرنا پاقژکەرێ ئۆتۆماتیکی
-        print(f"✅ HMB MUSIC IS READY - Logged in as {self.user}")
+        self.clean_data_task.start()
+        print(f"✅ HMB MUSIC IS READY")
 
-    # --- ٢. سیستەمێ پاقژکرنا داتایان هەر ١٠ خولەکان ---
     @tasks.loop(minutes=10)
     async def clean_data_task(self):
         try:
             for file in os.listdir('.'):
                 if file.endswith((".webm", ".m4a", ".mp3", ".pydat", ".temp")):
                     os.remove(file)
-            print("♻️ Temporary data cleaned.")
-        except Exception as e:
-            print(f"Cleaner Error: {e}")
+        except:
+            pass
 
 bot = MusicBot()
 
-# --- ٣. رێکخستنا موزیکێ (yt-dlp & FFmpeg) ---
+# --- ٢. رێکخستنا موزیکێ ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
     'quiet': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0',
     'nocheckcertificate': True,
 }
 
@@ -49,7 +45,7 @@ FFMPEG_OPTIONS = {
 
 ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
-# --- ٤. کۆنترۆڵ پانێل (Buttons) ---
+# --- ٣. کۆنترۆڵ پانێل (Buttons) ---
 class ControlPanel(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -60,47 +56,51 @@ class ControlPanel(discord.ui.View):
         if vc:
             if vc.is_playing():
                 vc.pause()
-                await interaction.response.send_message("⏸️ موزیک هاتە ڕاوەستاندن", ephemeral=True)
+                await interaction.response.send_message("⏸️ Paused", ephemeral=True)
             elif vc.is_paused():
                 vc.resume()
-                await interaction.response.send_message("▶️ موزیک بەردەوام بوو", ephemeral=True)
+                await interaction.response.send_message("▶️ Resumed", ephemeral=True)
 
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.red)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        vc = interaction.guild.voice_client
-        if vc:
-            await vc.disconnect()
-            await interaction.response.send_message("⏹️ بۆت دەرکەفت و موزیک ڕاوەستا", ephemeral=True)
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.disconnect()
+            await interaction.response.send_message("⏹️ Stopped", ephemeral=True)
 
-# --- ٥. فەرمانا Play (Hybrid: !play یان /play) ---
+# --- ٤. فەرمانا Play ---
 @bot.hybrid_command(name="play", description="لێدانا موزیکێ ژ YouTube, TikTok, Spotify")
-@app_commands.describe(search="ناڤ یان لینکا سترانێ")
 async def play(ctx, *, search: str):
-    await ctx.defer() # بۆ هندێ بۆت "Thinking" نیشان بدەت
-
+    await ctx.defer()
+    
     if not ctx.author.voice:
-        return await ctx.send("❌ تو پێدڤییە ل ناڤ چەناڵەکێ دەنگی بی!")
+        return await ctx.send("❌ تو یێ د چەناڵەکێ دەنگی دا نینی!")
 
-    # پەیوەندی ب چەناڵی
-    if not ctx.voice_client:
-        vc = await ctx.author.voice.channel.connect()
-    else:
-        vc = ctx.voice_client
+    vc = ctx.voice_client or await ctx.author.voice.channel.connect()
 
     try:
-        # کێشانا زانیاریێن ڤیدیۆیێ
-        loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
-        
+        data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=False))
         if 'entries' in data:
             data = data['entries'][0]
         
         url = data['url']
         title = data['title']
 
-        # ئەگەر سترانەکا دی یا لێدەت، وێ ڕاوەستینە
         if vc.is_playing():
             vc.stop()
 
-        # لێدانا موزیکێ
-        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(
+        # ل ڤێرێ ئاگەهدار بە کەوانە ب دروستی د داخستینە ))
+        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS))
+        vc.play(source)
+
+        embed = discord.Embed(title="🎶 HMB MUSIC", description=f"**{title}**", color=discord.Color.blue())
+        await ctx.send(embed=embed, view=ControlPanel())
+
+    except Exception as e:
+        await ctx.send(f"❌ خەلەتی: {e}")
+
+# --- ٥. دەستپێکرنا بۆتی ---
+TOKEN = os.getenv("DISCORD_TOKEN")
+if TOKEN:
+    bot.run(TOKEN)
+else:
+    print("❌ DISCORD_TOKEN NOT FOUND!")
