@@ -1,6 +1,3 @@
 discord.py[voice]
-yt-dlp==2024.08.06
+yt-dlp
 PyNaCl
-aiohttp
-markdown2
-curl_cffi
