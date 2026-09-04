@@ -1,5 +1,5 @@
 discord.py[voice]
-yt-dlp
+yt-dlp==2024.08.06
 PyNaCl
 aiohttp
 markdown2
