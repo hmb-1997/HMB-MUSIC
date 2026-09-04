@@ -8,24 +8,16 @@ import shutil
 from aiohttp import web
 import markdown2
 
-# --- دروستکرنا فایلا Cookies ژ Railway Variables ---
+# --- دروستکرنا فایلا Cookies ژ Railway ---
 COOKIES_FILE = "cookies.txt"
 cookies_raw = os.getenv("YT_COOKIES")
 
 if cookies_raw:
     with open(COOKIES_FILE, "w", encoding="utf-8") as f:
         f.write(cookies_raw)
-    print("✅ Cookies file is ready.")
-else:
-    print("⚠️ Warning: YT_COOKIES not found!")
+    print("✅ System Secure: Cookies Active")
 
 intents = discord.Intents.all()
-
-def render_page(title, file_path):
-    if not os.path.exists(file_path): return "<h1>File Not Found</h1>"
-    with open(file_path, "r", encoding="utf-8") as f: content = f.read()
-    html_body = markdown2.markdown(content)
-    return f"""<html><head><title>{title}</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"><style>body{{background:#1a1a1a;color:white;padding:40px;}}h1{{color:#5865F2;text-align:center;}}</style></head><body><div style="max-width:800px;margin:auto;"><h1>{title}</h1>{html_body}</div></body></html>"""
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -34,14 +26,12 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         await self.tree.sync()
         self.cleanup_task.start()
+        # وێب سێرڤەر بۆ پاراستنا پڕۆژەی
         app = web.Application()
-        app.router.add_get('/', lambda r: web.Response(text="HMB MUSIC ACTIVE", content_type='text/html'))
-        app.router.add_get('/tos', lambda r: web.Response(text=render_page("Terms of Service", "TOS.md"), content_type='text/html'))
-        app.router.add_get('/privacy', lambda r: web.Response(text=render_page("Privacy Policy", "PRIVACY.md"), content_type='text/html'))
+        app.router.add_get('/', lambda r: web.Response(text="HMB SYSTEM ACTIVE", content_type='text/html'))
         runner = web.AppRunner(app); await runner.setup()
         port = int(os.getenv("PORT", 8080))
         site = web.TCPSite(runner, '0.0.0.0', port); await site.start()
-        print(f"✅ Bot and Web Server Started")
 
     @tasks.loop(minutes=10)
     async def cleanup_task(self):
@@ -52,33 +42,39 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-# --- ڕێکخستنا هەرە پێشکەفتی یا yt-dlp بۆ کارکرنا ١٠٠٪ ---
+# --- سیستەمێ داکێشانێ یێ ب هێزکری (War Mode) ---
 YTDL_OPTIONS = {
-    'format': 'm4a/bestaudio/best', # گوهۆڕین بۆ m4a دا کو کێشەیا Format نەمینیت
+    'format': 'bestaudio/best',
     'noplaylist': True,
     'nocheckcertificate': True,
-    'ignoreerrors': True,
+    'ignoreerrors': False,
     'quiet': True,
+    'no_warnings': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(id)s.%(ext)s',
     'cookiefile': COOKIES_FILE if os.path.exists(COOKIES_FILE) else None,
-    # تاقی کرنا کلاینتێن جودا بۆ تێپەڕاندنا بلۆکی
     'extractor_args': {
-        'youtube': {'player_client': ['ios', 'web', 'mweb']},
-        'tiktok': {'app_id': '1180'}
+        'youtube': {
+            'player_client': ['android', 'web'], # بکارئینانا ئەندرۆید بۆ تێپەڕاندنا بلۆکی
+            'skip': ['dash', 'hls']
+        }
     },
 }
-ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
-FFMPEG_OPTIONS = {'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
 
-if not os.path.exists('downloads'): os.makedirs('downloads')
+ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
+
+# ڕێکخستنا ب هێز یا FFmpeg دا کو دەنگ تێک نەچیت
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn',
+}
+
 queues = {}
 
 def check_queue(ctx):
     if ctx.guild.id in queues and queues[ctx.guild.id]:
         next_song = queues[ctx.guild.id].pop(0)
-        if os.path.exists(next_song['file']):
-            ctx.voice_client.play(discord.FFmpegPCMAudio(next_song['file'], **FFMPEG_OPTIONS), after=lambda e: check_queue(ctx))
+        ctx.voice_client.play(discord.FFmpegPCMAudio(next_song['file'], **FFMPEG_OPTIONS), after=lambda e: check_queue(ctx))
 
 async def play_logic(ctx, search: str):
     if not ctx.author.voice: return await ctx.send("❌ پێدڤییە تو ل ڤۆیس بی!")
@@ -89,17 +85,16 @@ async def play_logic(ctx, search: str):
         if 'entries' in data: data = data['entries'][0]
         filename = ytdl.prepare_filename(data)
         
-        if vc.is_playing() or vc.is_paused():
+        if vc.is_playing():
             if ctx.guild.id not in queues: queues[ctx.guild.id] = []
             queues[ctx.guild.id].append({'file': filename, 'title': data.get('title')})
             return await ctx.send(f"➕ Added to queue: **{data.get('title')}**")
             
         vc.play(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), after=lambda e: check_queue(ctx))
-        embed = discord.Embed(title="🎶 Now Playing", description=f"**{data.get('title')}**", color=discord.Color.blue())
-        if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
+        embed = discord.Embed(title="🎶 Now Playing", description=f"**{data.get('title')}**", color=0x00ff00)
         await ctx.send(embed=embed, view=ControlView(ctx))
     except Exception as e:
-        await ctx.send(f"❌ Error during playback. YouTube is blocking the server.")
+        await ctx.send(f"⚠️ یوتیوب سێرڤەری بلۆک دکەت. تکایە Cookies نوو بکەڤە.")
 
 class ControlView(discord.ui.View):
     def __init__(self, ctx): super().__init__(timeout=None); self.ctx = ctx
@@ -107,39 +102,28 @@ class ControlView(discord.ui.View):
     async def pause(self, i, b):
         if i.guild.voice_client.is_playing(): i.guild.voice_client.pause(); await i.response.send_message("Paused", ephemeral=True)
         else: i.guild.voice_client.resume(); await i.response.send_message("Resumed", ephemeral=True)
+    
     @discord.ui.button(label="⏭️ Skip", style=discord.ButtonStyle.gray)
     async def skip(self, i, b):
-        if i.guild.voice_client: i.guild.voice_client.stop(); await i.response.send_message("Skipped", ephemeral=True)
+        if i.guild.voice_client: 
+            i.guild.voice_client.stop()
+            await i.response.send_message("Skipped ⏭️", ephemeral=True)
+
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.red)
     async def stop(self, i, b):
-        if i.guild.voice_client: await i.guild.voice_client.disconnect(); await i.response.send_message("Stopped", ephemeral=True)
-
-class SongDropdown(discord.ui.Select):
-    def __init__(self, ctx, label, songs):
-        super().__init__(placeholder=label, options=[discord.SelectOption(label=s[0], value=s[1]) for s in songs])
-        self.ctx = ctx
-    async def callback(self, inter):
-        await inter.response.send_message("🎵 Loading...", ephemeral=True)
-        await play_logic(self.ctx, self.values[0])
-
-class YTMusicView(discord.ui.View):
-    def __init__(self, ctx):
-        super().__init__(timeout=None)
-        # ل ڤێرە لیستێن خۆ دابنێ
-        l1 = [("سترانا ١", "https://music.youtube.com/watch?v=kFeYV_QO2oo")]
-        self.add_item(SongDropdown(ctx, "📂 Playlist 1", l1))
+        if i.guild.voice_client: 
+            queues[i.guild.id] = []
+            await i.guild.voice_client.disconnect()
+            await i.response.send_message("Stopped", ephemeral=True)
 
 @bot.hybrid_command(name="play")
 async def play(ctx, *, search: str): await ctx.defer(); await play_logic(ctx, search)
-
-@bot.hybrid_command(name="yt_music")
-async def yt_music(ctx): await ctx.send("🎶 Select a song:", view=YTMusicView(ctx))
 
 @bot.hybrid_command(name="skip")
 async def skip(ctx):
     if ctx.voice_client: ctx.voice_client.stop(); await ctx.send("⏭️ Skipped.")
 
 @bot.event
-async def on_ready(): print(f"✅ {bot.user} is Ready!")
+async def on_ready(): print(f"🚀 HMB SYSTEM IS ONLINE AND POWERFUL!")
 
 bot.run(os.getenv("DISCORD_TOKEN"))
