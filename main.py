@@ -112,10 +112,10 @@ class YTMusicView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=None)
         # ل ڤێرە تو دشێی ناڤ و لینکێن هەر ١٠٠ گۆرانیان دابنێی (هەر لیستەک ٢٥ دانە)
-        list1 = [("سترانا ١", "Hunermend", "https://music.youtube.com/watch?v=kFeYV_QO2oo&si=3ry1V7TfAza4BzvA"), ("سترانا ٢", "Hunermend", "https://...")] 
-        list2 = [("سترانا ٢٦", "Hunermend", "https://...")]
-        list3 = [("سترانا ٥١", "Hunermend", "https://...")]
-        list4 = [("سترانا ٧٦", "Hunermend", "https://...")]
+        list1 = [("سترانا ١", "Hunermend", "https://music.youtube.com/watch?v=kFeYV_QO2oo&si=3ry1V7TfAza4BzvA"), ("سترانا ٢", "Hunermend", "https://music.youtube.com/watch?v=FpRC6QYiQ3I&si=BRqpWPUT0eYDiSNM")] 
+        list2 = [("سترانا ٢٦", "Hunermend", "https://music.youtube.com/watch?v=i97rBoSUvWo&si=bgVl8NAjEO78BLAy")]
+        list3 = [("سترانا ٥١", "Hunermend", "https://music.youtube.com/watch?v=ay8V-XqEmi8&si=Omkvb3kNFyue-mnT")]
+        list4 = [("سترانا ٧٦", "Hunermend", "https://music.youtube.com/watch?v=Hs05RfeCsf8&si=_mTpPxvgqQx7CXv9")]
 
         self.add_item(MultiDropdown(ctx, "📂 لیستا ١ (١-٢٥)", list1))
         self.add_item(MultiDropdown(ctx, "📂 لیستا ٢ (٢٦-٥٠)", list2))
