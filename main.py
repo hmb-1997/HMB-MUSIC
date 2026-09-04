@@ -1,9 +1,10 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks # tasks هاتە زێدەکرن
 from discord import app_commands
 import yt_dlp
 import asyncio
 import os
+import shutil # بۆ پاقژکرنا فۆڵدەران
 
 # --- رێکخستنا Intents ---
 intents = discord.Intents.all()
@@ -14,11 +15,30 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         await self.tree.sync()
-        print(f"✅ Commands synced for {self.user}")
+        self.cleanup_task.start() # دەستپێکرنا سیستەمێ پاقژکرنێ
+        print(f"✅ Commands synced and Cleanup Task started for {self.user}")
+
+    # --- سیستەمێ پاقژکرنا داتایێن کاتی (هەر ١٠ خولەکان) ---
+    @tasks.loop(minutes=10)
+    async def cleanup_task(self):
+        folder = 'downloads'
+        if os.path.exists(folder):
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    # ئەگەر فایل نوکە ناهێتە لێدان، ڕەشکە
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                    print(f"♻️ Cleaned: {filename}")
+                except Exception as e:
+                    # ئەگەر فایل نوکە یێ "In Use" بیت دێ هێلیت بۆ جارەکا دی
+                    pass
 
 bot = MyBot()
 
-# --- رێکخستنا yt-dlp (ب چارەسەرییا کێشەیا یوتیوبێ ڤە) ---
+# --- رێکخستنا yt-dlp ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
@@ -27,7 +47,6 @@ YTDL_OPTIONS = {
     'quiet': True,
     'default_search': 'ytsearch',
     'outtmpl': 'downloads/%(id)s.%(ext)s',
-    # ئەڤ لایەنێ خوارێ دهێتە زێدەکرن بۆ کێمکرنا بلوککرنا سێرڤەری
     'extractor_args': {'youtube': {'player_client': ['android', 'web_embedded']}},
 }
 
@@ -43,8 +62,9 @@ def check_queue(ctx):
     if ctx.guild.id in queues and queues[ctx.guild.id]:
         next_song = queues[ctx.guild.id].pop(0)
         file_path = next_song['file']
-        ctx.voice_client.play(discord.FFmpegPCMAudio(file_path, **FFMPEG_OPTIONS), 
-                               after=lambda e: (os.remove(file_path) if os.path.exists(file_path) else None, check_queue(ctx)))
+        if os.path.exists(file_path):
+            ctx.voice_client.play(discord.FFmpegPCMAudio(file_path, **FFMPEG_OPTIONS), 
+                                   after=lambda e: (check_queue(ctx)))
 
 # --- مەکینا لێدانا موزیکێ ---
 async def play_logic(ctx, search: str):
@@ -65,12 +85,12 @@ async def play_logic(ctx, search: str):
             await ctx.send(f"➕ هاتە زێدەکرن: **{song_info['title']}**")
         else:
             vc.play(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), 
-                    after=lambda e: (os.remove(filename) if os.path.exists(filename) else None, check_queue(ctx)))
+                    after=lambda e: (check_queue(ctx)))
             embed = discord.Embed(title="🎶 HMB MUSIC - NOW PLAYING", description=f"**{song_info['title']}**", color=discord.Color.blue())
             if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
             await ctx.send(embed=embed, view=ControlView(ctx))
     except Exception as e:
-        await ctx.send(f"❌ خەلەتییەک چێبوو. یوتیوب نوکە سێرڤەری بلۆک دکەت، ئەگەر کار نەکەت پێدڤی ب فایلا Cookies ی.")
+        await ctx.send(f"❌ خەلەتییەک چێبوو: {str(e)}")
 
 # --- کۆنترۆڵ پانێل (Buttons) ---
 class ControlView(discord.ui.View):
@@ -111,7 +131,6 @@ class MultiDropdown(discord.ui.Select):
 class YTMusicView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=None)
-        # ل ڤێرە تو دشێی ناڤ و لینکێن هەر ١٠٠ گۆرانیان دابنێی (هەر لیستەک ٢٥ دانە)
         list1 = [("سترانا ١", "Hunermend", "https://music.youtube.com/watch?v=kFeYV_QO2oo&si=3ry1V7TfAza4BzvA"), ("سترانا ٢", "Hunermend", "https://music.youtube.com/watch?v=FpRC6QYiQ3I&si=BRqpWPUT0eYDiSNM")] 
         list2 = [("سترانا ٢٦", "Hunermend", "https://music.youtube.com/watch?v=i97rBoSUvWo&si=bgVl8NAjEO78BLAy")]
         list3 = [("سترانا ٥١", "Hunermend", "https://music.youtube.com/watch?v=ay8V-XqEmi8&si=Omkvb3kNFyue-mnT")]
