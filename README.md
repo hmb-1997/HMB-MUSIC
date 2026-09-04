@@ -1,7 +1,7 @@
 <h1 align="center">
   <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Musical%20Notes.png" alt="Music Notes" width="50" height="50" />
   <br>
-  HMB MUSIC - Discord Bot
+  ıllı HMB MUSIC ılll
 </h1>
 
 <p align="center">
@@ -14,7 +14,7 @@
 ---
 
 ### 🌟 دەربارەی پڕۆژەی (About Project)
-**HMB MUSIC** بۆتەکێ موزیکێ یێ ب هێز و پێشکەفتییە، هاتییە دیزاینکرن دا کو باشترین کوالیتیا دەنگی دابین بکەت ب کێمتڕین "Delay". ئەڤ بۆتە ب شێوەیەکێ تایبەت بۆ سەکۆیا **Railway** هاتییە ڕێکخستن.
+**HMB MUSIC** بۆتەکێ موزیکێ یێ ب هێز و پێشکەفتییە، ب تایبەت بۆ سێرڤەرێن دیسکۆردێ هاتییە گەشەپێدان. ئەڤ بۆتە باشترین کوالیتییا دەنگی پێشکێش دکەت و ب شێوەیەکێ ئۆتۆماتیک کار دکەت دا کو هەمیشە یێ خێرا بیت.
 
 ---
 
@@ -23,9 +23,9 @@
 *   **🎵 پشتەڤانییا فرە-سەکۆ:** لێدانا موزیکێ ژ YouTube, TikTok, و YouTube Music.
 *   **📂 لیستا ١٠٠ گۆرانیان:** فەرمانا `/yt_music` لیستەکا ئامادەکری یا ١٠٠ گۆرانیێن جودا پێشکێش دکەت.
 *   **🕹️ کۆنترۆڵ پانێل:** ب ڕێکا دوگمەیێن (Pause, Resume, Skip, Stop) کارلێکەر موزیکێ کۆنترۆڵ بکە.
-*   **♻️ سیستەمێ پاقژکرنا زیرەک:** هەر **١٠ خولەکان** ئۆتۆماتیک داتایێن کاتی (Cache) ڕەش دکەت دا کو سێرڤەر تژی نەبیت.
+*   **♻️ سیستەمێ پاقژکرنا زیرەک:** هەر **١٠ خولەکان** ئۆتۆماتیک داتایێن کاتی (Cache) ڕەش دکەت دا کو سێرڤەر تژی نەبیت و خێرایی کێم نەبیت.
 *   **⚡ فەرمانێن هایبرید:** پشتەڤانی ژ Slash Commands `/` و Prefix Commands `!` دکەت.
-*   **🛡️ پاراستنا Cookies:** سیستەمێ تێپەڕاندنا بلۆککرنا یوتیوبێ ب ڕێکا Cookies.
+*   **🚀 هەمیشە ئۆنلاین:** هاتییە ڕێکخستن دا کو ٢٤ سەعاتان ل سەر سەکۆیا **Railway** چالاک بیت.
 
 ---
 
@@ -33,10 +33,10 @@
 
 | فەرمان | کارکرن | مەبەست |
 | :--- | :--- | :--- |
-| `/play` | `!play` | لێدانا موزیکێ ب ڕێکا ناڤ یان لینک |
+| `/play` | `!play` | لێدانا موزیکێ ب ڕێکا ناڤ یان لینکا سترانێ |
 | `/yt_music` | `!yt_music` | نیشاندانا لیستا ١٠٠ گۆرانیێن ئامادەکری |
-| `/skip` | `!skip` | چۆنە سەر سترانا داهاتی |
-| `/stop` | `!stop` | ڕاوەستاندنا موزیکێ و دەرکەفتن |
+| `/skip` | `!skip` | بازدان ب سەر سترانا داهاتی |
+| `/stop` | `!stop` | ڕاوەستاندنا موزیکێ و دەرکەفتنا بۆتی |
 | `/pause` | `!pause` | ڕاوەستاندنا کاتی یا موزیکێ |
 | `/resume` | `!resume` | بەردەوامکرنا موزیکا ڕاوەستیای |
 
@@ -46,24 +46,24 @@
 
 ١. ڤی پڕۆژەی ل سەر GitHub بکە **Fork** یان **Upload**.
 ٢. ل سەر سایتێ **Railway.app** پڕۆژەیەکێ نوو ژ GitHub دەستپێ بکە.
-٣. د بەشێ **Variables** دا، ئەڤان زێدە بکە:
+٣. د بەشێ **Variables** دا، تەنێ ئەڤێ زێدە بکە:
    - `DISCORD_TOKEN` = (تۆکنا بۆتێ تە)
-   - `YT_COOKIES` = (دەقێ کۆکیسێن یوتیوبێ ب شێوازێ Netscape)
-٤. Railway دێ ب خۆ بۆتێ تە ئاکتیڤ کەت.
+٤. Railway دێ ب خۆ دەست ب کار کەت و بۆتێ تە ئاکتیڤ کەت.
 
 ---
 
 ### 🛠️ تەکنەلۆژیا (Built With)
 
 - **Language:** [Python 3.11](https://www.python.org/)
-- **API Wrapper:** [Discord.py](https://discordpy.readthedocs.io/)
+- **Library:** [Discord.py](https://discordpy.readthedocs.io/)
 - **Streaming:** [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - **Audio Engine:** [FFmpeg](https://ffmpeg.org/)
-- **Web Server:** [Aiohttp](https://docs.aiohttp.org/)
+- **Web Host:** [Railway.app](https://railway.app/)
 
 ---
 
 ### 📄 یاسایی (Legal)
+بۆ دیتنا مەرج و یاسایێن بۆتی، سەیری ئەڤان لینکان بکە:
 - [Terms of Service](https://hmb-music-production.up.railway.app/tos)
 - [Privacy Policy](https://hmb-music-production.up.railway.app/privacy)
 
@@ -71,7 +71,7 @@
 
 ### 👨‍💻 گەشەپێدەر (Developer)
 **HMB-1997**  
-ئەگەر ئەڤ پڕۆژە ب دڵێ تە بوو، ستێرەکێ ⭐ بدە ریپۆزیتۆریێ!
+ئەگەر ئەڤ پڕۆژە ب دڵێ تە بوو، ستێرەکێ ⭐ بدە ریپۆزیتۆریێ ل سەر GitHub!
 
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=waving&color=auto&height=100&section=footer" width="100%"/>
