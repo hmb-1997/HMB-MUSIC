@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 
-# دابەزاندنا FFmpeg و ئامرازێن دەنگی
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libffi-dev \
