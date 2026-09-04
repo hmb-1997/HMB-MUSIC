@@ -12,7 +12,6 @@ class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
 
-    # ئەڤ بەشە فەرمانان دگەل دیسکۆردێ Sync دکەت دا د پڕۆفایلێ دا دیار بن
     async def setup_hook(self):
         await self.tree.sync()
         print(f"✅ Commands synced for {self.user}")
@@ -45,6 +44,32 @@ def check_queue(ctx):
         ctx.voice_client.play(discord.FFmpegPCMAudio(file_path, **FFMPEG_OPTIONS), 
                                after=lambda e: (os.remove(file_path) if os.path.exists(file_path) else None, check_queue(ctx)))
 
+# --- فرمانا لێدانا موزیکێ (هاتە جوداکرن دا د هەمی جهان دا کار بکەت) ---
+async def play_logic(ctx, search: str):
+    if not ctx.author.voice:
+        return await ctx.send("❌ پێدڤییە تو ل ناڤ چەناڵەکێ دەنگی بی!")
+
+    vc = ctx.voice_client or await ctx.author.voice.channel.connect()
+
+    try:
+        data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=True))
+        if 'entries' in data and data['entries']: data = data['entries'][0]
+        filename = ytdl.prepare_filename(data)
+        song_info = {'file': filename, 'title': data.get('title', 'Unknown')}
+
+        if vc.is_playing() or vc.is_paused():
+            if ctx.guild.id not in queues: queues[ctx.guild.id] = []
+            queues[ctx.guild.id].append(song_info)
+            await ctx.send(f"➕ Added to queue: **{song_info['title']}**")
+        else:
+            vc.play(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), 
+                    after=lambda e: (os.remove(filename) if os.path.exists(filename) else None, check_queue(ctx)))
+            embed = discord.Embed(title="🎶 HMB MUSIC - NOW PLAYING", description=f"**{song_info['title']}**", color=discord.Color.blue())
+            if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
+            await ctx.send(embed=embed, view=ControlView(ctx))
+    except Exception as e:
+        await ctx.send(f"❌ خەلەتییەک چێبوو: {str(e)}")
+
 # --- کۆنترۆڵ پانێل (Buttons) ---
 class ControlView(discord.ui.View):
     def __init__(self, ctx):
@@ -70,35 +95,44 @@ class ControlView(discord.ui.View):
             await interaction.guild.voice_client.disconnect()
             await interaction.response.send_message("Stopped ⏹️", ephemeral=True)
 
-# --- فەرمانێن بۆتی (ئەڤێن ل خوارێ دێ د پڕۆفایلێ دا دیار بن) ---
+# --- لیستا موزیکێن دیاریکری (YT Music List) ---
+class SongDropdown(discord.ui.Select):
+    def __init__(self, ctx):
+        # ل ڤێرە تو دشێی هەتا ٢٥ دانە د ئێک لیست دا دابنێی
+        options = [
+            discord.SelectOption(label="گۆرانی ١", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK1"),
+            discord.SelectOption(label="گۆرانی ٢", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK2"),
+            discord.SelectOption(label="گۆرانی ٣", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK3"),
+            # ل ڤێرە زێدە بکە هەتا ٢٥ دانە...
+        ]
+        super().__init__(placeholder="گۆرانیەکێ هەلبژێرە...", min_values=1, max_values=1, options=options)
+        self.ctx = ctx
 
-@bot.hybrid_command(name="play", description="لێدانا موزیکێ ژ یوتیوب و تیکتۆک")
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(f"🎵 دهێتە ئامادەکرن: {self.values[0]}", ephemeral=True)
+        await play_logic(self.ctx, self.values[0])
+
+class SongListView(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.add_item(SongDropdown(ctx))
+
+# --- فەرمانێن بۆتی ---
+
+@bot.hybrid_command(name="yt_music", description="لیستەکا موزیکێن ئامادەکری")
+async def yt_music(ctx):
+    embed = discord.Embed(
+        title="🎵 YT Music Library",
+        description="ژ لیستا خوارێ گۆرانیەکێ هەلبژێرە دا بۆت لێ بدەت.",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed, view=SongListView(ctx))
+
+@bot.hybrid_command(name="play", description="لێدانا موزیکێ ب لینک یان ناڤ")
 @app_commands.describe(search="ناڤ یان لینکا موزیکێ")
 async def play(ctx, *, search: str):
     await ctx.defer()
-    if not ctx.author.voice:
-        return await ctx.send("❌ پێدڤییە تو ل ناڤ چەناڵەکێ دەنگی بی!")
-
-    vc = ctx.voice_client or await ctx.author.voice.channel.connect()
-
-    try:
-        data = await asyncio.get_event_loop().run_in_executor(None, lambda: ytdl.extract_info(search, download=True))
-        if 'entries' in data and data['entries']: data = data['entries'][0]
-        filename = ytdl.prepare_filename(data)
-        song_info = {'file': filename, 'title': data.get('title', 'Unknown')}
-
-        if vc.is_playing() or vc.is_paused():
-            if ctx.guild.id not in queues: queues[ctx.guild.id] = []
-            queues[ctx.guild.id].append(song_info)
-            await ctx.send(f"➕ Added to queue: **{song_info['title']}**")
-        else:
-            vc.play(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), 
-                    after=lambda e: (os.remove(filename) if os.path.exists(filename) else None, check_queue(ctx)))
-            embed = discord.Embed(title="🎶 HMB MUSIC - NOW PLAYING", description=f"**{song_info['title']}**", color=discord.Color.blue())
-            if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
-            await ctx.send(embed=embed, view=ControlView(ctx))
-    except Exception as e:
-        await ctx.send(f"❌ خەلەتییەک چێبوو.")
+    await play_logic(ctx, search)
 
 @bot.hybrid_command(name="stop", description="ڕاوەستاندنا موزیکێ و دەرکەفتنا بۆتی")
 async def stop(ctx):
