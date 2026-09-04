@@ -15,9 +15,9 @@ cookies_raw = os.getenv("YT_COOKIES")
 if cookies_raw:
     with open(COOKIES_FILE, "w", encoding="utf-8") as f:
         f.write(cookies_raw)
-    print("✅ Cookies file created from Railway Variable")
+    print("✅ Cookies file created successfully.")
 else:
-    print("⚠️ Warning: YT_COOKIES not found! Bot might get blocked.")
+    print("⚠️ Warning: YT_COOKIES not found!")
 
 # --- Intents ---
 intents = discord.Intents.all()
@@ -39,7 +39,7 @@ class MyBot(commands.Bot):
         
         # Web Server Setup
         app = web.Application()
-        app.router.add_get('/', lambda r: web.Response(text="Bot Online", content_type='text/html'))
+        app.router.add_get('/', lambda r: web.Response(text="HMB MUSIC IS ONLINE", content_type='text/html'))
         app.router.add_get('/tos', lambda r: web.Response(text=render_page("Terms of Service", "TOS.md"), content_type='text/html'))
         app.router.add_get('/privacy', lambda r: web.Response(text=render_page("Privacy Policy", "PRIVACY.md"), content_type='text/html'))
         
@@ -52,14 +52,15 @@ class MyBot(commands.Bot):
 
     @tasks.loop(minutes=10)
     async def cleanup_task(self):
-        if os.path.exists('downloads'):
-            for f in os.listdir('downloads'):
-                try: os.remove(os.path.join('downloads', f))
+        folder = 'downloads'
+        if os.path.exists(folder):
+            for f in os.listdir(folder):
+                try: os.remove(os.path.join(folder, f))
                 except: pass
 
 bot = MyBot()
 
-# --- yt-dlp Configuration ---
+# --- ڕێکخستنا ب هێز یا yt-dlp بۆ (YT, TikTok, YT Music) ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
@@ -92,27 +93,42 @@ async def play_logic(ctx, search: str):
         if 'entries' in data: data = data['entries'][0]
         filename = ytdl.prepare_filename(data)
         
-        if vc.is_playing():
+        if vc.is_playing() or vc.is_paused():
             if ctx.guild.id not in queues: queues[ctx.guild.id] = []
             queues[ctx.guild.id].append({'file': filename, 'title': data.get('title')})
-            return await ctx.send(f"➕ Added: **{data.get('title')}**")
+            return await ctx.send(f"➕ Added to queue: **{data.get('title')}**")
             
         vc.play(discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS), after=lambda e: check_queue(ctx))
-        embed = discord.Embed(title="🎶 Now Playing", description=f"**{data.get('title')}**", color=discord.Color.blue())
+        embed = discord.Embed(title="🎶 HMB MUSIC - NOW PLAYING", description=f"**{data.get('title')}**", color=discord.Color.blue())
         if 'thumbnail' in data: embed.set_thumbnail(url=data['thumbnail'])
         await ctx.send(embed=embed, view=ControlView(ctx))
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
 
+# --- کۆنترۆڵ پانێل دگەل SKIP ---
 class ControlView(discord.ui.View):
-    def __init__(self, ctx): super().__init__(timeout=None); self.ctx = ctx
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx
+
     @discord.ui.button(label="⏸️ Pause/Resume", style=discord.ButtonStyle.blurple)
-    async def pause(self, inter, btn):
-        if inter.guild.voice_client.is_playing(): inter.guild.voice_client.pause(); await inter.response.send_message("Paused", ephemeral=True)
-        else: inter.guild.voice_client.resume(); await inter.response.send_message("Resumed", ephemeral=True)
+    async def pause_resume(self, interaction, button):
+        vc = interaction.guild.voice_client
+        if vc.is_playing(): vc.pause(); await interaction.response.send_message("Paused ⏸️", ephemeral=True)
+        else: vc.resume(); await interaction.response.send_message("Resumed ▶️", ephemeral=True)
+
+    @discord.ui.button(label="⏭️ Skip", style=discord.ButtonStyle.gray)
+    async def skip_btn(self, interaction, button):
+        if interaction.guild.voice_client:
+            interaction.guild.voice_client.stop()
+            await interaction.response.send_message("Skipped ⏭️", ephemeral=True)
+
     @discord.ui.button(label="⏹️ Stop", style=discord.ButtonStyle.red)
-    async def stop(self, inter, btn):
-        await inter.guild.voice_client.disconnect(); await inter.response.send_message("Stopped", ephemeral=True)
+    async def stop_btn(self, interaction, button):
+        if interaction.guild.voice_client:
+            queues[interaction.guild.id] = []
+            await interaction.guild.voice_client.disconnect()
+            await interaction.response.send_message("Stopped ⏹️", ephemeral=True)
 
 class SongDropdown(discord.ui.Select):
     def __init__(self, ctx, label, songs):
@@ -125,17 +141,38 @@ class SongDropdown(discord.ui.Select):
 class YTMusicView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=None)
-        # ل ڤێرە ناڤ و لینکێن ١٠٠ گۆرانیان زێدە بکە (هەر لیستەک ٢٥ دانە)
-        l1 = [("سترانا ١", "https://music.youtube.com/watch?v=kFeYV_QO2oo"), ("سترانا ٢", "https://music.youtube.com/watch?v=FpRC6QYiQ3I")]
+        # ل ڤێرە لیستێن خۆ دابنێ
+        l1 = [("Kurdish Melody", "https://music.youtube.com/watch?v=kFeYV_QO2oo"), ("Le Le Shivan", "https://www.youtube.com/watch?v=FpRC6QYiQ3I")]
         self.add_item(SongDropdown(ctx, "📂 Playlist 1", l1))
 
-@bot.hybrid_command(name="yt_music")
-async def yt_music(ctx): await ctx.send("🎶 Select a song:", view=YTMusicView(ctx))
+# --- فەرمانێن بۆتی ---
 
 @bot.hybrid_command(name="play")
-async def play(ctx, *, search: str): await ctx.defer(); await play_logic(ctx, search)
+async def play(ctx, *, search: str):
+    await ctx.defer()
+    await play_logic(ctx, search)
+
+@bot.hybrid_command(name="skip", description="بازدان ب سەر سترانا داهاتی")
+async def skip(ctx):
+    if ctx.voice_client and ctx.voice_client.is_playing():
+        ctx.voice_client.stop()
+        await ctx.send("⏭️ موزیک هاتە بازدان (Skipped).")
+    else:
+        await ctx.send("❌ چو موزیک ناهێنە لێدان!")
+
+@bot.hybrid_command(name="stop", description="ڕاوەستاندن و دەرکەفتن")
+async def stop(ctx):
+    if ctx.voice_client:
+        queues[ctx.guild.id] = []
+        await ctx.voice_client.disconnect()
+        await ctx.send("⏹️ موزیک هاتە ڕاوەستاندن.")
+
+@bot.hybrid_command(name="yt_music", description="لیستا گۆرانیان")
+async def yt_music(ctx):
+    await ctx.send("🎶 Select a song:", view=YTMusicView(ctx))
 
 @bot.event
-async def on_ready(): print(f"✅ {bot.user} is Ready!")
+async def on_ready():
+    print(f"✅ {bot.user} is online and ready!")
 
 bot.run(os.getenv("DISCORD_TOKEN"))
