@@ -44,7 +44,7 @@ def check_queue(ctx):
         ctx.voice_client.play(discord.FFmpegPCMAudio(file_path, **FFMPEG_OPTIONS), 
                                after=lambda e: (os.remove(file_path) if os.path.exists(file_path) else None, check_queue(ctx)))
 
-# --- فرمانا لێدانا موزیکێ (هاتە جوداکرن دا د هەمی جهان دا کار بکەت) ---
+# --- فرمانا لێدانا موزیکێ ---
 async def play_logic(ctx, search: str):
     if not ctx.author.voice:
         return await ctx.send("❌ پێدڤییە تو ل ناڤ چەناڵەکێ دەنگی بی!")
@@ -95,17 +95,14 @@ class ControlView(discord.ui.View):
             await interaction.guild.voice_client.disconnect()
             await interaction.response.send_message("Stopped ⏹️", ephemeral=True)
 
-# --- لیستا موزیکێن دیاریکری (YT Music List) ---
-class SongDropdown(discord.ui.Select):
-    def __init__(self, ctx):
-        # ل ڤێرە تو دشێی هەتا ٢٥ دانە د ئێک لیست دا دابنێی
+# --- لیستا گۆرانیێن تایبەت ---
+class MultiDropdown(discord.ui.Select):
+    def __init__(self, ctx, placeholder, options_data):
         options = [
-            discord.SelectOption(label="گۆرانی ١", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK1"),
-            discord.SelectOption(label="گۆرانی ٢", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK2"),
-            discord.SelectOption(label="گۆرانی ٣", description="Hunermend - Song Name", value="https://www.youtube.com/watch?v=LINK3"),
-            # ل ڤێرە زێدە بکە هەتا ٢٥ دانە...
+            discord.SelectOption(label=name, description=desc, value=link)
+            for name, desc, link in options_data
         ]
-        super().__init__(placeholder="گۆرانیەکێ هەلبژێرە...", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=placeholder, options=options)
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
@@ -115,16 +112,45 @@ class SongDropdown(discord.ui.Select):
 class SongListView(discord.ui.View):
     def __init__(self, ctx):
         super().__init__(timeout=None)
-        self.add_item(SongDropdown(ctx))
+        
+        # ل ڤێرە گۆرانیێن خۆ زێدە بکە (هەر لیستەک ٢٥ گۆرانی)
+        # نموونە: ("ناڤێ سترانێ", "ناڤێ هونەرمەندی", "لینکا یوتیوب")
+        
+        songs_part1 = [
+            ("سترانا ١", "Hunermend 1", "https://www.youtube.com/watch?v=1"),
+            ("سترانا ٢", "Hunermend 2", "https://www.youtube.com/watch?v=2"),
+            # هەتا ٢٥ دانە ل ڤێرە زێدە بکە...
+        ]
+        
+        songs_part2 = [
+            ("سترانا ٢٦", "Hunermend 26", "https://www.youtube.com/watch?v=26"),
+            # هەتا ٢٥ دانە ل ڤێرە زێدە بکە...
+        ]
+
+        songs_part3 = [
+            ("سترانا ٥١", "Hunermend 51", "https://www.youtube.com/watch?v=51"),
+            # هەتا ٢٥ دانە ل ڤێرە زێدە بکە...
+        ]
+
+        songs_part4 = [
+            ("سترانا ٧٦", "Hunermend 76", "https://www.youtube.com/watch?v=76"),
+            # هەتا ٢٥ دانە ل ڤێرە زێدە بکە...
+        ]
+
+        # زێدەکرنا لیستێن دایە ل سەر سکرینێ
+        if songs_part1: self.add_item(MultiDropdown(ctx, "📂 لیستا ١ (١-٢٥)", songs_part1))
+        if songs_part2: self.add_item(MultiDropdown(ctx, "📂 لیستا ٢ (٢٦-٥٠)", songs_part2))
+        if songs_part3: self.add_item(MultiDropdown(ctx, "📂 لیستا ٣ (٥١-٧٥)", songs_part3))
+        if songs_part4: self.add_item(MultiDropdown(ctx, "📂 لیستا ٤ (٧٦-١٠٠)", songs_part4))
 
 # --- فەرمانێن بۆتی ---
 
-@bot.hybrid_command(name="yt_music", description="لیستەکا موزیکێن ئامادەکری")
+@bot.hybrid_command(name="yt_music", description="لیستەکا ١٠٠ موزیکێن ئامادەکری")
 async def yt_music(ctx):
     embed = discord.Embed(
-        title="🎵 YT Music Library",
-        description="ژ لیستا خوارێ گۆرانیەکێ هەلبژێرە دا بۆت لێ بدەت.",
-        color=discord.Color.red()
+        title="🎵 HMB MUSIC LIBRARY",
+        description="گۆرانیەکێ ژ لیستێن خوارێ هەلبژێرە دا بۆت دەست ب لێدانێ بکەت.",
+        color=discord.Color.gold()
     )
     await ctx.send(embed=embed, view=SongListView(ctx))
 
@@ -134,7 +160,7 @@ async def play(ctx, *, search: str):
     await ctx.defer()
     await play_logic(ctx, search)
 
-@bot.hybrid_command(name="stop", description="ڕاوەستاندنا موزیکێ و دەرکەفتنا بۆتی")
+@bot.hybrid_command(name="stop", description="ڕاوەستاندنا موزیکێ")
 async def stop(ctx):
     if ctx.voice_client:
         queues[ctx.guild.id] = []
@@ -147,17 +173,17 @@ async def stop(ctx):
 async def skip(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
         ctx.voice_client.stop()
-        await ctx.send("⏭️ موزیک هاتە بازدان (Skipped).")
+        await ctx.send("⏭️ موزیک هاتە بازدان.")
     else:
         await ctx.send("❌ چو موزیک ناهێنە لێدان نوکە!")
 
-@bot.hybrid_command(name="pause", description="ڕاوەستاندنا کاتی یا موزیکێ")
+@bot.hybrid_command(name="pause", description="ڕاوەستاندنا کاتی")
 async def pause(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
         ctx.voice_client.pause()
         await ctx.send("⏸️ موزیک هاتە ڕاوەستاندن.")
 
-@bot.hybrid_command(name="resume", description="بەردەوامکرنا موزیکا ڕاوەستیای")
+@bot.hybrid_command(name="resume", description="بەردەوامکرنا موزیکێ")
 async def resume(ctx):
     if ctx.voice_client and ctx.voice_client.is_paused():
         ctx.voice_client.resume()
